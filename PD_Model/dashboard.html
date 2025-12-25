@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Risk Model Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>Credit Risk ML</h2>
+                <p class="subtitle">Model Monitoring</p>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="overview">
+                    <span class="icon">📊</span>
+                    <span>Overview</span>
+                </button>
+                <button class="nav-item" data-view="model-comparison">
+                    <span class="icon">📈</span>
+                    <span>Model Comparison</span>
+                </button>
+                <button class="nav-item" data-view="predictions">
+                    <span class="icon">🎯</span>
+                    <span>Predictions</span>
+                </button>
+                <button class="nav-item" data-view="feature-analysis">
+                    <span class="icon">🔍</span>
+                    <span>Feature Analysis</span>
+                </button>
+            </nav>
+
+            <div class="theme-switcher">
+                <button id="themeToggle" class="theme-toggle">
+                    <span class="theme-icon">🌙</span>
+                    <span class="theme-text">Dark Mode</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1 id="viewTitle">Dashboard Overview</h1>
+                    <p class="header-subtitle">Real-time model performance monitoring</p>
+                </div>
+                <div class="header-right">
+                    <div class="model-selector">
+                        <label for="modelSelect">Active Model:</label>
+                        <select id="modelSelect" class="model-select">
+                            <option value="all">All Models</option>
+                            <option value="xgb">XGBoost</option>
+                            <option value="rf">Random Forest</option>
+                            <option value="logreg">Logistic Regression</option>
+                        </select>
+                    </div>
+                    <div class="data-status">
+                        <span class="status-dot"></span>
+                        <span id="dataStatus">Loading data...</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Overview View -->
+            <section id="overview" class="view-section active">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon xgb">🚀</div>
+                        <div class="kpi-content">
+                            <h3>XGBoost</h3>
+                            <p class="kpi-value" id="xgb-accuracy">--</p>
+                            <p class="kpi-label">Accuracy</p>
+                            <div class="kpi-trend" id="xgb-trend"></div>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon rf">🌲</div>
+                        <div class="kpi-content">
+                            <h3>Random Forest</h3>
+                            <p class="kpi-value" id="rf-accuracy">--</p>
+                            <p class="kpi-label">Accuracy</p>
+                            <div class="kpi-trend" id="rf-trend"></div>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon logreg">📐</div>
+                        <div class="kpi-content">
+                            <h3>Logistic Regression</h3>
+                            <p class="kpi-value" id="logreg-accuracy">--</p>
+                            <p class="kpi-label">Accuracy</p>
+                            <div class="kpi-trend" id="logreg-trend"></div>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon total">📋</div>
+                        <div class="kpi-content">
+                            <h3>Total Predictions</h3>
+                            <p class="kpi-value" id="total-predictions">--</p>
+                            <p class="kpi-label">Test Set Size</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Model Performance Comparison</h3>
+                            <p class="chart-subtitle">Accuracy, Precision, Recall, F1-Score</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Confusion Matrix</h3>
+                            <p class="chart-subtitle">True vs Predicted Values</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="confusionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Prediction Distribution</h3>
+                            <p class="chart-subtitle">Default (1) vs Non-Default (0)</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="predictionDistChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Model Agreement</h3>
+                            <p class="chart-subtitle">Consensus between models</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="agreementChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Model Comparison View -->
+            <section id="model-comparison" class="view-section">
+                <div class="comparison-grid">
+                    <!-- Detailed Metrics Table -->
+                    <div class="metrics-table-card">
+                        <div class="card-header">
+                            <h3>Detailed Performance Metrics</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="metrics-table" id="metricsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Accuracy</th>
+                                        <th>Precision (0)</th>
+                                        <th>Precision (1)</th>
+                                        <th>Recall (0)</th>
+                                        <th>Recall (1)</th>
+                                        <th>F1-Score (0)</th>
+                                        <th>F1-Score (1)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ROC Curve Comparison -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Precision vs Recall</h3>
+                            <p class="chart-subtitle">Class 1 (Default) Performance</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="precisionRecallChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Error Analysis -->
+                    <div class="chart-card full-width">
+                        <div class="chart-header">
+                            <h3>Error Analysis by Model</h3>
+                            <p class="chart-subtitle">False Positives vs False Negatives</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="errorAnalysisChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Predictions View -->
+            <section id="predictions" class="view-section">
+                <div class="predictions-container">
+                    <!-- Filters -->
+                    <div class="filters-card">
+                        <h3>Filter Predictions</h3>
+                        <div class="filter-grid">
+                            <div class="filter-group">
+                                <label>Loan Intent</label>
+                                <select id="loanIntentFilter" class="filter-select">
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Home Ownership</label>
+                                <select id="homeOwnershipFilter" class="filter-select">
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Actual Status</label>
+                                <select id="actualStatusFilter" class="filter-select">
+                                    <option value="all">All</option>
+                                    <option value="0">Non-Default (0)</option>
+                                    <option value="1">Default (1)</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Model Consensus</label>
+                                <select id="consensusFilter" class="filter-select">
+                                    <option value="all">All</option>
+                                    <option value="agree">All Agree</option>
+                                    <option value="disagree">Disagree</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="applyFilters" class="btn-primary">Apply Filters</button>
+                    </div>
+
+                    <!-- Predictions Table -->
+                    <div class="predictions-table-card">
+                        <div class="card-header">
+                            <h3>Prediction Results</h3>
+                            <div class="table-actions">
+                                <input type="text" id="searchInput" placeholder="Search..." class="search-input">
+                                <span id="recordCount" class="record-count">Showing 0 of 0 records</span>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="predictions-table" id="predictionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Age</th>
+                                        <th>Income</th>
+                                        <th>Home</th>
+                                        <th>Loan Intent</th>
+                                        <th>Loan Amount</th>
+                                        <th>Interest Rate</th>
+                                        <th>Actual</th>
+                                        <th>XGBoost</th>
+                                        <th>Random Forest</th>
+                                        <th>Log Reg</th>
+                                        <th>Consensus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination">
+                            <button id="prevPage" class="btn-pagination">Previous</button>
+                            <span id="pageInfo" class="page-info">Page 1</span>
+                            <button id="nextPage" class="btn-pagination">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Feature Analysis View -->
+            <section id="feature-analysis" class="view-section">
+                <div class="feature-grid">
+                    <!-- Loan Amount Distribution -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Loan Amount Distribution</h3>
+                            <p class="chart-subtitle">By Default Status</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="loanAmountChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Income Distribution -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Income Distribution</h3>
+                            <p class="chart-subtitle">By Default Status</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="incomeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Loan Intent Analysis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Default Rate by Loan Intent</h3>
+                            <p class="chart-subtitle">Risk assessment by purpose</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="loanIntentChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Interest Rate Analysis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Interest Rate vs Default Status</h3>
+                            <p class="chart-subtitle">Correlation analysis</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="interestRateChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Age Analysis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Age Distribution</h3>
+                            <p class="chart-subtitle">By Default Status</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="ageChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Home Ownership Analysis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Default Rate by Home Ownership</h3>
+                            <p class="chart-subtitle">Risk by housing status</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="homeOwnershipChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
